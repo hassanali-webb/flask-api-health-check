@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>FlaskAPI Explorer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600;700&family=Syne:wght@400;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0c10;
+    --surface: #111318;
+    --surface2: #1a1d25;
+    --border: #252932;
+    --accent: #00f5a0;
+    --accent2: #00b4d8;
+    --warn: #f5a623;
+    --danger: #f54242;
+    --text: #e8eaf0;
+    --muted: #5a6070;
+    --code-bg: #0d1117;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    min-height: 100vh;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    grid-template-rows: 60px 1fr;
+  }
+
+  /* ── TOPBAR ── */
+  header {
+    grid-column: 1/-1;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    padding: 0 24px;
+    gap: 16px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  header .logo {
+    font-size: 18px; font-weight: 800;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+  }
+  header .badge {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 10px; font-weight: 600;
+    background: rgba(0,245,160,0.12); color: var(--accent);
+    border: 1px solid rgba(0,245,160,0.3);
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .status-pill {
+    margin-left: auto;
+    display: flex; align-items: center; gap: 6px;
+    font-family: 'JetBrains Mono', monospace; font-size: 11px;
+    color: var(--accent);
+  }
+  .status-pill .dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--accent);
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity:1; box-shadow: 0 0 0 0 rgba(0,245,160,.4); }
+    50% { opacity:.7; box-shadow: 0 0 0 6px rgba(0,245,160,0); }
+  }
+
+  /* ── SIDEBAR ── */
+  aside {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    overflow-y: auto;
+  }
+  .sidebar-section {
+    padding: 0 16px 8px;
+    font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .route-btn {
+    width: 100%;
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 16px;
+    background: none; border: none; cursor: pointer;
+    color: var(--text); font-family: 'Syne', sans-serif;
+    font-size: 13px; text-align: left;
+    transition: background .15s;
+    border-left: 3px solid transparent;
+  }
+  .route-btn:hover { background: var(--surface2); }
+  .route-btn.active {
+    background: var(--surface2);
+    border-left-color: var(--accent);
+    color: var(--accent);
+  }
+  .method-tag {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 9px; font-weight: 700;
+    padding: 2px 6px; border-radius: 3px;
+    min-width: 38px; text-align: center;
+  }
+  .GET  { background: rgba(0,245,160,.15); color: var(--accent); }
+  .POST { background: rgba(0,180,216,.15); color: var(--accent2); }
+
+  .divider { height: 1px; background: var(--border); margin: 12px 16px; }
+
+  /* ── MAIN ── */
+  main {
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+
+  .request-bar {
+    display: flex; align-items: center; gap: 10px;
+    padding: 16px 24px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+  }
+  .url-display {
+    flex: 1;
+    font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    background: var(--code-bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--accent2);
+  }
+  .send-btn {
+    padding: 10px 22px;
+    background: var(--accent); color: #000;
+    font-family: 'Syne', sans-serif; font-weight: 700; font-size: 13px;
+    border: none; border-radius: 8px; cursor: pointer;
+    transition: opacity .2s, transform .1s;
+  }
+  .send-btn:hover { opacity: .85; }
+  .send-btn:active { transform: scale(.97); }
+  .send-btn.loading { opacity: .6; cursor: wait; }
+
+  .content-area {
+    flex: 1;
+    display: grid; grid-template-columns: 1fr 1fr;
+    overflow: hidden;
+  }
+
+  .panel {
+    display: flex; flex-direction: column;
+    overflow: hidden;
+  }
+  .panel-header {
+    padding: 12px 20px;
+    font-size: 11px; font-weight: 700; letter-spacing: 1px;
+    color: var(--muted); text-transform: uppercase;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .panel-header .status-code {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12px; font-weight: 700;
+    padding: 2px 8px; border-radius: 4px;
+  }
+  .code-200 { background: rgba(0,245,160,.15); color: var(--accent); }
+  .code-404 { background: rgba(245,66,66,.15); color: var(--danger); }
+  .code-500 { background: rgba(245,166,35,.15); color: var(--warn); }
+
+  .panel + .panel { border-left: 1px solid var(--border); }
+
+  .code-viewer {
+    flex: 1; overflow: auto;
+    padding: 20px;
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 12.5px; line-height: 1.7;
+    background: var(--code-bg);
+    white-space: pre;
+  }
+
+  /* JSON syntax highlighting */
+  .j-key   { color: #79b8ff; }
+  .j-str   { color: #85e89d; }
+  .j-num   { color: #fdab9f; }
+  .j-bool  { color: #f97583; }
+  .j-null  { color: #b392f0; }
+  .j-punct { color: var(--muted); }
+
+  /* Route docs panel */
+  .docs-panel {
+    padding: 24px;
+    overflow-y: auto;
+  }
+  .docs-panel h2 {
+    font-size: 20px; font-weight: 800;
+    margin-bottom: 6px;
+  }
+  .docs-panel p { font-size: 13px; color: var(--muted); line-height: 1.6; }
+  .param-table { width: 100%; border-collapse: collapse; margin-top: 16px; }
+  .param-table th {
+    text-align: left; font-size: 10px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    color: var(--muted); border-bottom: 1px solid var(--border);
+    padding: 8px 0;
+  }
+  .param-table td {
+    padding: 8px 0; font-size: 12px;
+    border-bottom: 1px solid var(--border);
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .param-table td:first-child { color: var(--accent2); }
+
+  /* K8s badge */
+  .k8s-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 700;
+    background: rgba(0,180,216,.12); color: var(--accent2);
+    border: 1px solid rgba(0,180,216,.3);
+    border-radius: 20px; padding: 3px 10px; margin-top: 12px;
+  }
+
+  /* ── FOOTER LOG ── */
+  .log-bar {
+    grid-column: 1/-1;
+    height: 36px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    display: flex; align-items: center;
+    padding: 0 20px; gap: 20px;
+    overflow-x: auto;
+  }
+  .log-entry {
+    display: flex; gap: 8px; align-items: center;
+    font-family: 'JetBrains Mono', monospace; font-size: 10px;
+    color: var(--muted); white-space: nowrap;
+  }
+  .log-entry .t { color: var(--text); }
+  .log-entry .ok { color: var(--accent); }
+  .log-entry .err { color: var(--danger); }
+
+  /* ── ANIMATIONS ── */
+  .fade-in { animation: fadeIn .25s ease; }
+  @keyframes fadeIn { from { opacity:0; transform: translateY(4px); } to { opacity:1; transform: translateY(0); } }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 6px; height: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="logo">⬡ FlaskAPI</div>
+  <div class="badge">v1.0.0</div>
+  <div class="status-pill">
+    <div class="dot"></div>
+    <span id="uptime-label">LIVE</span>
+  </div>
+</header>
+
+<!-- SIDEBAR -->
+<aside>
+  <div class="sidebar-section">Core</div>
+
+  <button class="route-btn active" onclick="select('/health','GET','health')">
+    <span class="method-tag GET">GET</span>/health
+  </button>
+  <button class="route-btn" onclick="select('/readiness','GET','readiness')">
+    <span class="method-tag GET">GET</span>/readiness
+  </button>
+  <button class="route-btn" onclick="select('/info','GET','info')">
+    <span class="method-tag GET">GET</span>/info
+  </button>
+
+  <div class="divider"></div>
+  <div class="sidebar-section">Resources</div>
+
+  <button class="route-btn" onclick="select('/users','GET','users')">
+    <span class="method-tag GET">GET</span>/users
+  </button>
+  <button class="route-btn" onclick="select('/users/1','GET','user_detail')">
+    <span class="method-tag GET">GET</span>/users/:id
+  </button>
+
+  <div class="divider"></div>
+  <div class="sidebar-section">Ops</div>
+
+  <button class="route-btn" onclick="select('/metrics','GET','metrics')">
+    <span class="method-tag GET">GET</span>/metrics
+  </button>
+  <button class="route-btn" onclick="select('/echo','POST','echo')">
+    <span class="method-tag POST">POST</span>/echo
+  </button>
+</aside>
+
+<!-- MAIN -->
+<main>
+  <div class="request-bar">
+    <div class="url-display" id="url-display">http://localhost:5000/health</div>
+    <button class="send-btn" id="send-btn" onclick="sendRequest()">▶ Send</button>
+  </div>
+
+  <div class="content-area">
+    <!-- Left: Docs -->
+    <div class="panel">
+      <div class="panel-header">📄 Endpoint Docs</div>
+      <div class="docs-panel" id="docs-panel">
+        <h2>/health</h2>
+        <p>Kubernetes liveness probe. Returns app status and uptime. Should return <strong>200</strong> when the process is alive.</p>
+        <div class="k8s-badge">⎈ K8s liveness probe</div>
+        <br><br>
+        <table class="param-table">
+          <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+          <tr><td>status</td><td>string</td><td>"healthy" or "degraded"</td></tr>
+          <tr><td>uptime_seconds</td><td>number</td><td>Seconds since app start</td></tr>
+          <tr><td>timestamp</td><td>string</td><td>UTC ISO-8601 timestamp</td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- Right: Response -->
+    <div class="panel">
+      <div class="panel-header" id="response-header">
+        📡 Response
+        <span class="status-code" id="status-code-badge" style="display:none"></span>
+        <span id="latency-label" style="margin-left:auto;font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--muted)"></span>
+      </div>
+      <div class="code-viewer" id="response-viewer">
+<span style="color:var(--muted)">// Hit ▶ Send to fire the request…</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- LOG BAR -->
+  <div class="log-bar" id="log-bar">
+    <div class="log-entry"><span class="t">Ready</span> — select a route and press Send</div>
+  </div>
+</main>
+
+<script>
+  const BASE = window.location.origin;  // works when served by Flask
+  let currentRoute = '/health';
+  let currentMethod = 'GET';
+
+  const DOCS = {
+    health: {
+      title: '/health',
+      desc: 'Kubernetes <strong>liveness probe</strong>. Returns app status and uptime. Should return <strong>200</strong> when the process is alive.',
+      badge: '⎈ K8s liveness probe',
+      fields: [['status','string','"healthy" or "degraded"'],['uptime_seconds','number','Seconds since app start'],['timestamp','string','UTC ISO-8601 timestamp']]
+    },
+    readiness: {
+      title: '/readiness',
+      desc: 'Kubernetes <strong>readiness probe</strong>. Checks that all dependencies (DB, cache, etc.) are reachable before traffic is routed to the pod.',
+      badge: '⎈ K8s readiness probe',
+      fields: [['status','string','"ready" or "not_ready"'],['checks','object','Per-dependency status map']]
+    },
+    info: {
+      title: '/info',
+      desc: 'App metadata endpoint. Returns version, Python runtime, and OS platform.',
+      badge: null,
+      fields: [['app','string','App name'],['version','string','SemVer'],['python','string','Python version'],['uptime_seconds','number','Uptime']]
+    },
+    users: {
+      title: '/users',
+      desc: 'Returns the full list of users with their roles.',
+      badge: null,
+      fields: [['users','array','List of user objects'],['total','number','Total count']]
+    },
+    user_detail: {
+      title: '/users/:id',
+      desc: 'Fetch a single user by numeric ID. Returns <strong>404</strong> if not found.',
+      badge: null,
+      fields: [['id','number','User ID'],['name','string','Full name'],['role','string','admin | developer | designer'],['email','string','Email address']]
+    },
+    metrics: {
+      title: '/metrics',
+      desc: 'Lightweight Prometheus-style metrics snapshot. Use with a scraper or monitoring dashboard.',
+      badge: null,
+      fields: [['requests_total','number','Total HTTP requests'],['errors_total','number','Total errors'],['latency_p50_ms','number','Median latency'],['latency_p99_ms','number','P99 tail latency'],['memory_mb','number','Heap usage'],['cpu_percent','number','CPU utilisation']]
+    },
+    echo: {
+      title: '/echo',
+      desc: 'Debug endpoint. Reflects back the method, query params, JSON body, and headers of your request. Accepts GET and POST.',
+      badge: null,
+      fields: [['method','string','HTTP method used'],['args','object','Query string params'],['json','object|null','Parsed request body'],['headers','object','Request headers']]
+    },
+  };
+
+  function select(route, method, key) {
+    currentRoute = route;
+    currentMethod = method;
+    document.getElementById('url-display').textContent = BASE + route;
+    // sidebar highlight
+    document.querySelectorAll('.route-btn').forEach(b => b.classList.remove('active'));
+    event.currentTarget.classList.add('active');
+    // docs
+    renderDocs(key);
+    // clear response
+    document.getElementById('response-viewer').innerHTML = '<span style="color:var(--muted)">// Hit ▶ Send to fire the request…</span>';
+    document.getElementById('status-code-badge').style.display = 'none';
+    document.getElementById('latency-label').textContent = '';
+  }
+
+  function renderDocs(key) {
+    const d = DOCS[key];
+    const badge = d.badge ? `<div class="k8s-badge">${d.badge}</div><br><br>` : '<br>';
+    const rows = d.fields.map(([f,t,desc]) => `<tr><td>${f}</td><td>${t}</td><td style="color:var(--muted);padding-left:12px">${desc}</td></tr>`).join('');
+    document.getElementById('docs-panel').innerHTML = `
+      <h2>${d.title}</h2>
+      <p>${d.desc}</p>
+      ${badge}
+      <table class="param-table">
+        <tr><th>Field</th><th>Type</th><th>Description</th></tr>
+        ${rows}
+      </table>`;
+  }
+
+  async function sendRequest() {
+    const btn = document.getElementById('send-btn');
+    btn.classList.add('loading'); btn.textContent = '⏳ Sending…';
+
+    const viewer = document.getElementById('response-viewer');
+    viewer.innerHTML = '<span style="color:var(--muted)">Fetching…</span>';
+
+    const t0 = performance.now();
+    let status = 0;
+    try {
+      const opts = { method: currentMethod, headers: {'Content-Type':'application/json'} };
+      if (currentMethod === 'POST') {
+        opts.body = JSON.stringify({ message: "hello from explorer", ts: new Date().toISOString() });
+      }
+      const res = await fetch(BASE + currentRoute, opts);
+      status = res.status;
+      const data = await res.json();
+      const ms = Math.round(performance.now() - t0);
+
+      viewer.innerHTML = syntaxHighlight(JSON.stringify(data, null, 2));
+      viewer.classList.add('fade-in');
+
+      // status badge
+      const badge = document.getElementById('status-code-badge');
+      badge.textContent = status;
+      badge.className = 'status-code ' + (status < 300 ? 'code-200' : status < 500 ? 'code-404' : 'code-500');
+      badge.style.display = '';
+      document.getElementById('latency-label').textContent = ms + 'ms';
+
+      addLog(currentRoute, status, ms);
+    } catch(e) {
+      viewer.innerHTML = `<span style="color:var(--danger)">// Error: ${e.message}\n// Is Flask running on port 5000?</span>`;
+      addLog(currentRoute, 0, 0);
+    } finally {
+      btn.classList.remove('loading'); btn.textContent = '▶ Send';
+    }
+  }
+
+  function syntaxHighlight(json) {
+    return json
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?|[{}\[\],:])/g, m => {
+        if (/^"/.test(m)) {
+          if (/:$/.test(m)) return `<span class="j-key">${m}</span>`;
+          return `<span class="j-str">${m}</span>`;
+        }
+        if (/true|false/.test(m)) return `<span class="j-bool">${m}</span>`;
+        if (/null/.test(m)) return `<span class="j-null">${m}</span>`;
+        if (/[{}\[\],:]/.test(m)) return `<span class="j-punct">${m}</span>`;
+        return `<span class="j-num">${m}</span>`;
+      });
+  }
+
+  const logs = [];
+  function addLog(route, status, ms) {
+    logs.unshift({ route, status, ms, ts: new Date().toLocaleTimeString() });
+    if (logs.length > 8) logs.pop();
+    const bar = document.getElementById('log-bar');
+    bar.innerHTML = logs.map(l => `
+      <div class="log-entry">
+        <span style="color:var(--muted)">${l.ts}</span>
+        <span class="t">${l.route}</span>
+        <span class="${l.status >= 200 && l.status < 300 ? 'ok' : 'err'}">${l.status || 'ERR'}</span>
+        ${l.ms ? `<span style="color:var(--muted)">${l.ms}ms</span>` : ''}
+      </div>`).join('<span style="color:var(--border)">|</span>');
+  }
+
+  // Uptime ticker
+  const t0 = Date.now();
+  setInterval(() => {
+    const s = Math.floor((Date.now()-t0)/1000);
+    document.getElementById('uptime-label').textContent = `LIVE · ${s}s`;
+  }, 1000);
+</script>
+</body>
+</html>
